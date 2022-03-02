@@ -1119,6 +1119,7 @@ name = "taosdump-rs"
 version = "0.1.0"
 dependencies = [
  "avro-rs",
+ "itertools",
  "libtaos",
  "parquet",
  "serde",
