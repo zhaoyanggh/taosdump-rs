@@ -71,3 +71,12 @@ impl From<clap::Error> for Error {
         }
     }
 }
+
+impl From<libtaos::Error> for Error {
+    fn from(err: libtaos::Error) -> Self {
+        Error {
+            msg: String::from("Taos Error"),
+            source: Some(Box::new(err)),
+        }
+    }
+}

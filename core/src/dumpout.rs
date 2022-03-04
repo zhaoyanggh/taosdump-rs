@@ -1,15 +1,14 @@
 use libtaos::*;
+use utils::Formats;
 
 use std::{fs, path::Path};
 use utils::error::Result;
 use utils::taos::taos_connect;
 
 use crate::avro::avro_dumpout;
-use crate::commands::Formats;
 use crate::parquet::parquet_dumpout;
 
 #[tokio::main]
-#[allow(unreachable_patterns)]
 pub async fn start(dir_path: &str, _threads: u32, format: Formats) -> Result<i64> {
     let taos = taos_connect().unwrap();
 

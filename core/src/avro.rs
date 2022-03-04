@@ -1,11 +1,14 @@
 use std::{
     fs::File,
     io::{BufReader, Write},
+    ops::Residual,
+    path::PathBuf,
 };
 
 use avro_rs::types::Value;
 use avro_rs::{types::Record, Codec, Reader, Schema, Writer};
 use bstr::BString;
+use libtaos::Taos;
 use serde_json::{self, json, Map};
 
 pub fn generate_avro_schema(column_names: &Vec<String>, data_types: &Vec<BString>) -> Schema {
@@ -87,7 +90,6 @@ pub fn avro_dumpout(
     let file = File::open("sample.avro").unwrap();
     get_schema(file);
     let file = File::open("sample.avro").unwrap();
-    tojson(file);
     data_point
 }
 
@@ -100,17 +102,6 @@ fn get_schema(file: File) {
             serde_json::from_str(&x.writer_schema().canonical_form()).expect("");
         let pretty = serde_json::to_string_pretty(&json).expect("");
         println!("{}", pretty);
-    }
-}
-
-fn tojson(file: File) {
-    let buffered_reader = BufReader::new(file);
-
-    let r = Reader::new(buffered_reader);
-    for x in r.unwrap() {
-        let json = avro_to_json(x.unwrap());
-
-        println!("{}\n", json);
     }
 }
 
@@ -164,5 +155,21 @@ fn avro_to_json(x: Value) -> serde_json::Value {
         Value::TimestampMicros(_) => todo!(),
         Value::Duration(_) => todo!(),
         Value::Uuid(_) => todo!(),
+    }
+}
+
+#[tokio::main]
+pub async fn avro_dumpin(file_list: &Vec<PathBuf>, taos: Taos) {
+    taos.query("create database if not exists demo").await;
+    taos.query("use demo").await;
+    taos.query("create table m1 (ts timestamp,c1 tinyint,c2 tinyint unsigned,c3 smallint,c4 smallint unsigned,c5 int,c6 int unsigned,c7 bigint,c8 bigint unsigned,c9 float,c10 double,c11 binary(8),c12 nchar(8),c13 bool)").await;
+    for file in file_list {
+        let f = File::open(file).unwrap();
+        let buffered_reader = BufReader::new(f);
+        let r = Reader::new(buffered_reader);
+        for x in r.unwrap() {
+            let json = avro_to_json(x.unwrap());
+            println!("{}\n", json);
+        }
     }
 }
