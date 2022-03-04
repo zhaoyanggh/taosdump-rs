@@ -11,7 +11,7 @@ pub fn taos_connect() -> Result<Taos, Error> {
         .pass(&var_or_default("TEST_TAOS_PASS", "taosdata"))
         .db(&var_or_default("TEST_TAOS_DB", "log"))
         .port(
-            var_or_default("TEST_TAOS_PORT", "7030")
+            var_or_default("TEST_TAOS_PORT", "6030")
                 .parse::<u16>()
                 .unwrap(),
         )

@@ -16,4 +16,3 @@ members = [
 utils = { path = "utils"}
 cli = {path = "cli"}
 core = {path = "core"}
-better-panic = "0.3.0"
