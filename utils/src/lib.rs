@@ -36,7 +36,10 @@ pub fn get_all_data_files(dir_path: &str, file_list: &mut Vec<PathBuf>, format: 
     }
     for entry in paths {
         match entry {
-            Ok(path) => file_list.push(path),
+            Ok(path) => {
+                println!("{:?}", path);
+                file_list.push(path)
+            }
             Err(e) => println!("{:?}", e),
         }
     }

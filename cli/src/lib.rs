@@ -20,6 +20,9 @@ pub struct Cli {
     /// Set target directory path
     pub path: String,
 
+    /// Set dumpout database name
+    pub name: String,
+
     /// Number of threads
     pub thread: Option<u32>,
 }
@@ -57,7 +60,7 @@ pub fn cli_match() -> Result<()> {
     // Execute the subcommand
     match &cli.command {
         Commands::DumpIn => commands::dumpin(cli.path.as_str(), cli.thread.unwrap_or(1), format)?,
-        Commands::DumpOut => commands::dumpout(cli.path.as_str(), cli.thread.unwrap_or(1), format)?,
+        Commands::DumpOut => commands::dumpout(cli.path.as_str(), cli.thread.unwrap_or(1), format, cli.name)?,
     }
 
     Ok(())

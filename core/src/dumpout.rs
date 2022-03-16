@@ -1,6 +1,8 @@
 use libtaos::*;
+use log::{info, trace};
 use utils::Formats;
 
+use std::io::Write;
 use std::{fs, path::Path};
 use utils::error::Result;
 use utils::taos::taos_connect;
@@ -44,4 +46,63 @@ pub async fn start(dir_path: &str, _threads: u32, format: Formats) -> Result<i64
     };
 
     Ok(num_of_points)
+}
+
+#[tokio::main]
+pub async fn dumpout_database_sql(dir_path: &str, name: String) -> Result<()> {
+    let taos = taos_connect().unwrap();
+    let rows = taos
+        .query(format!("show create database {}", name).as_str())
+        .await
+        .unwrap();
+    let file_name = format!("{}{}.db", dir_path, name);
+    let path = Path::new(file_name.as_str());
+    let mut file = fs::File::create(&path).unwrap();
+    for row in rows.rows {
+        for field in row {
+            match field {
+                Field::Binary(v) => {
+                    if v == name {
+                        continue;
+                    } else {
+                        file.write(&v).unwrap();
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    info!(
+        "database {} is successfully dumped out to {}",
+        name, file_name
+    );
+    Ok(())
+}
+
+#[tokio::main]
+pub async fn dumpout_stable_sql(_dir_path: &str, name: String) -> Result<()> {
+    let taos = taos_connect().unwrap();
+    trace!("taos successfully connected");
+    taos.use_database(&name).await.unwrap();
+    trace!("use database {}", name);
+    let rows = taos.query("show stables").await.unwrap();
+    if rows.rows.len() == 0 {
+        info!("no stable found!");
+        return Ok(());
+    } else {
+        trace!("found stables");
+        for row in rows.rows {
+            assert!(row.len() > 1);
+            for field in row {
+                println!("{}", field);
+                match field {
+                    Field::Binary(v) => {
+                        println!("{}", v);
+                    }
+                    _ => continue,
+                }
+            }
+        }
+    }
+    Ok(())
 }

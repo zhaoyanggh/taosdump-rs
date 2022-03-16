@@ -1,12 +1,13 @@
 use std::{
     fs::File,
     io::{BufReader, Write},
-    ops::Residual,
     path::PathBuf,
 };
 
-use avro_rs::types::Value;
-use avro_rs::{types::Record, Codec, Reader, Schema, Writer};
+use avro_rs::{
+    types::{Record, Value},
+    Codec, Reader, Schema, Writer,
+};
 use bstr::BString;
 use libtaos::Taos;
 use serde_json::{self, json, Map};
@@ -86,90 +87,52 @@ pub fn avro_dumpout(
     }
     let input = writer.into_inner().unwrap();
     file.write(&input).unwrap();
-
-    let file = File::open("sample.avro").unwrap();
-    get_schema(file);
-    let file = File::open("sample.avro").unwrap();
     data_point
-}
-
-fn get_schema(file: File) {
-    let buffered_reader = BufReader::new(file);
-
-    let r = Reader::new(buffered_reader);
-    for x in r {
-        let json: serde_json::Value =
-            serde_json::from_str(&x.writer_schema().canonical_form()).expect("");
-        let pretty = serde_json::to_string_pretty(&json).expect("");
-        println!("{}", pretty);
-    }
-}
-
-fn avro_to_json(x: Value) -> serde_json::Value {
-    match x {
-        Value::Null => serde_json::Value::Null,
-        Value::Boolean(b) => serde_json::Value::Bool(b),
-        Value::Long(n) => serde_json::json!(n),
-        Value::Double(n) => serde_json::json!(n),
-        Value::Int(n) => serde_json::json!(n),
-        Value::Float(n) => serde_json::json!(n),
-        Value::Fixed(n, items) => serde_json::json!(vec![
-            serde_json::json!(n),
-            serde_json::Value::Array(
-                items
-                    .into_iter()
-                    .map(|item| serde_json::json!(item))
-                    .collect()
-            )
-        ]),
-
-        Value::Bytes(items) => serde_json::Value::Array(
-            items
-                .into_iter()
-                .map(|item| serde_json::json!(item))
-                .collect(),
-        ),
-        Value::String(s) => serde_json::Value::String(s),
-        Value::Array(items) => {
-            serde_json::Value::Array(items.into_iter().map(|item| avro_to_json(item)).collect())
-        }
-        Value::Map(items) => serde_json::Value::Object(
-            items
-                .into_iter()
-                .map(|(key, value)| (key, avro_to_json(value)))
-                .collect::<_>(),
-        ),
-        Value::Record(items) => serde_json::Value::Object(
-            items
-                .into_iter()
-                .map(|(key, value)| (key, avro_to_json(value)))
-                .collect::<_>(),
-        ),
-        Value::Union(v) => avro_to_json(*v),
-        Value::Enum(_v, s) => serde_json::json!(s),
-        Value::Date(_) => todo!(),
-        Value::Decimal(_) => todo!(),
-        Value::TimeMillis(_) => todo!(),
-        Value::TimeMicros(_) => todo!(),
-        Value::TimestampMillis(_) => todo!(),
-        Value::TimestampMicros(_) => todo!(),
-        Value::Duration(_) => todo!(),
-        Value::Uuid(_) => todo!(),
-    }
 }
 
 #[tokio::main]
 pub async fn avro_dumpin(file_list: &Vec<PathBuf>, taos: Taos) {
-    taos.query("create database if not exists demo").await;
-    taos.query("use demo").await;
-    taos.query("create table m1 (ts timestamp,c1 tinyint,c2 tinyint unsigned,c3 smallint,c4 smallint unsigned,c5 int,c6 int unsigned,c7 bigint,c8 bigint unsigned,c9 float,c10 double,c11 binary(8),c12 nchar(8),c13 bool)").await;
+    assert_eq!(
+        taos.query("create database if not exists demo")
+            .await
+            .is_ok(),
+        true
+    );
+    assert_eq!(taos.query("use demo").await.is_ok(), true);
+    assert_eq!(taos.query("create table m1 (ts timestamp,c1 tinyint,c2 tinyint unsigned,c3 smallint,c4 smallint unsigned,c5 int,c6 int unsigned,c7 bigint,c8 bigint unsigned,c9 float,c10 double,c11 binary(8),c12 nchar(8),c13 bool)").await.is_ok(), true);
+
     for file in file_list {
         let f = File::open(file).unwrap();
         let buffered_reader = BufReader::new(f);
         let r = Reader::new(buffered_reader);
+        let mut sql = "insert into m1 values".to_string();
         for x in r.unwrap() {
-            let json = avro_to_json(x.unwrap());
-            println!("{}\n", json);
+            let mut _count = 0;
+            sql += "(";
+            match x.unwrap() {
+                Value::Record(r) => {
+                    for row in r.into_iter() {
+                        if _count != 0 {
+                            sql += ",";
+                        }
+                        _count += 1;
+                        match row.1 {
+                            Value::Null => todo!(),
+                            Value::Boolean(v) => sql += &v.to_string(),
+                            Value::Int(v) => sql += &v.to_string(),
+                            Value::Long(v) => sql += &v.to_string(),
+                            Value::Float(v) => sql += &v.to_string(),
+                            Value::Double(v) => sql += &v.to_string(),
+                            Value::Bytes(v) => sql += String::from_utf8(v).unwrap().as_str(),
+                            Value::String(v) => sql += &v.to_string(),
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }
+            sql += ")";
         }
+        assert_eq!(taos.query(sql.as_str()).await.is_ok(), true);
     }
 }

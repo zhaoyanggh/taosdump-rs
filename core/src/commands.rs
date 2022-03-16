@@ -4,7 +4,7 @@ use super::dumpin;
 use super::dumpout;
 use utils::error::Result;
 use utils::get_all_data_files;
-use utils::Formats;
+pub use utils::Formats;
 
 pub fn dumpin(path: &str, thread: u32, format: Formats) -> Result<()> {
     let mut file_list: Vec<PathBuf> = vec![];
@@ -13,7 +13,9 @@ pub fn dumpin(path: &str, thread: u32, format: Formats) -> Result<()> {
     Ok(())
 }
 
-pub fn dumpout(path: &str, thread: u32, format: Formats) -> Result<()> {
+pub fn dumpout(path: &str, thread: u32, format: Formats, name: String) -> Result<()> {
+    dumpout::dumpout_database_sql(path, name.clone())?;
+    dumpout::dumpout_stable_sql(path, name.clone())?;
     dumpout::start(path, thread, format)?;
     Ok(())
 }
